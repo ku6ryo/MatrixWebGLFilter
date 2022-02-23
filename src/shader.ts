@@ -11,7 +11,7 @@ export function createShader(gl: WebGLRenderingContext, type: number, source: st
   }
   console.log(gl.getShaderInfoLog(shader))
   gl.deleteShader(shader)
-  return null
+  throw new Error("failed to create shader")
 }
 
 export function createProgram(gl: WebGLRenderingContext, vertexShader: WebGLShader, fragmentShader: WebGLShader) {
@@ -28,5 +28,5 @@ export function createProgram(gl: WebGLRenderingContext, vertexShader: WebGLShad
   }
   console.log(gl.getProgramInfoLog(program));
   gl.deleteProgram(program);
-  return null
+  throw new Error("failed to create program")
 }
