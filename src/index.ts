@@ -19,35 +19,27 @@ document.body.appendChild(button)
 const stats = new Stats()
 document.body.appendChild(stats.dom)
 
-
 function main() {
-  const video = document.createElement("video");
-  const videoCanvas = document.createElement("canvas")
-  const videoContext = videoCanvas.getContext("2d")
+  const mainCanvas = document.createElement("canvas")
+  const mainContext = mainCanvas.getContext("2d")
+  mainCanvas.style.height = "100vh"
+  mainCanvas.style.width = "100vw"
+  document.querySelector(".container")!.appendChild(mainCanvas)
+
+  const cameraVideo = document.createElement("video");
+  const cameraCanvas = document.createElement("canvas")
+  const cameraContext = cameraCanvas.getContext("2d")
   const matrixVideo = document.createElement("video")
   matrixVideo.src = matrixVideoUrl
-  matrixVideo.autoplay = true;
   matrixVideo.loop = true
-  matrixVideo.style.width = "100vw";
-  matrixVideo.style.height = "100vh";
-  matrixVideo.style.position = "absolute";
-  matrixVideo.style.top = "0"
-  matrixVideo.style.left = "0"
-  matrixVideo.style.zIndex = "1"
-  document.body.appendChild(matrixVideo)
+  matrixVideo.play()
 
-  const canvas = document.createElement("canvas")
-  canvas.style.height = "100vh"
-  canvas.style.width = "100vw"
-  canvas.style.position = "relative"
-  canvas.style.zIndex = "100"
-  document.body.appendChild(canvas)
-
-  const gl = canvas.getContext("webgl")
+  const shaderCanvas = document.createElement("canvas")
+  const gl = shaderCanvas.getContext("webgl")
   if (!gl) {
     throw new Error("no webgl")
   }
-  if (!videoContext) {
+  if (!cameraContext) {
     throw new Error("no video context")
   }
   if (navigator.mediaDevices.getUserMedia) {
@@ -57,8 +49,8 @@ function main() {
       },
     })
     .then(function (stream) {
-      video.srcObject = stream;
-      video.play();
+      cameraVideo.srcObject = stream;
+      cameraVideo.play();
     })
     .catch(function (e) {
       console.log(e)
@@ -69,33 +61,39 @@ function main() {
   }
 
   function process() {
-    if (!videoContext) {
+    if (!cameraContext) {
       throw new Error("no video context")
     }
     if (!gl) {
       throw new Error("no webgl context")
     }
+    if (!mainContext) {
+      throw new Error("no main context")
+    }
     stats.begin()
-    videoContext.drawImage(video, 0, 0, videoCanvas.width, videoCanvas.height)
-    const data = videoContext.getImageData(0, 0, videoCanvas.width, videoCanvas.height)
-    render(gl, data)
+    cameraContext.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height)
+    applyEdgeDetection(gl, cameraCanvas)
+    mainContext.drawImage(matrixVideo, 0, 0, mainCanvas.width, mainCanvas.height)
+    mainContext.drawImage(shaderCanvas, 0, 0, mainCanvas.width, mainCanvas.height)
     stats.end()
     requestAnimationFrame(process)
   }
-  video.addEventListener("playing", () => {
-    const vw = video.videoWidth
-    const vh = video.videoHeight
-    videoCanvas.width = vw
-    videoCanvas.height = vh
+  cameraVideo.addEventListener("playing", () => {
+    const vw = cameraVideo.videoWidth
+    const vh = cameraVideo.videoHeight
+    mainCanvas.width = vw
+    mainCanvas.height = vh
+    mainCanvas.style.maxHeight = `calc(100vw * ${vh / vw})`
+    mainCanvas.style.maxWidth = `calc(100vh * ${vw / vh})`
+    cameraCanvas.width = vw
+    cameraCanvas.height = vh
+    shaderCanvas.width = vw;
+    shaderCanvas.height = vh;
     requestAnimationFrame(process)
-    canvas.width = vw;
-    canvas.height = vh;
-    canvas.style.maxHeight = `calc(100vw * ${vh / vw})`
-    canvas.style.maxWidth = `calc(100vh * ${vw / vh})`
   })
 }
 
-function render(gl: WebGLRenderingContext, image: HTMLImageElement | ImageData) {
+function applyEdgeDetection(gl: WebGLRenderingContext, image: HTMLCanvasElement) {
   const vertShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource)
   const fragShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource)
   if (!vertShader || !fragShader) {
